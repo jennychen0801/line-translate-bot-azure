@@ -1,0 +1,37 @@
+name: Keep Render Awake
+
+# 目的：定時對 Render 服務的 /health 發 HTTP 請求，
+#      重置 Render 免費方案的 15 分鐘閒置計時器，避免服務休眠。
+#
+# 設定方式：
+#   1. GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+#      Name: RENDER_URL
+#      Value: https://你的render網址.onrender.com   （結尾不加斜線）
+#   2. push 本檔到預設分支後，Actions 會依排程自動執行。
+#
+# 注意：cron 為 UTC 且尖峰可能延遲數分鐘；repo 近 60 天無 commit 時 GitHub 會暫停排程，
+#      屆時進 Actions 頁面 Enable，或隨手 commit 一次即可恢復。
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # 每 10 分鐘一次
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /health
+        run: |
+          if [ -z "${{ secrets.RENDER_URL }}" ]; then
+            echo "❌ 尚未設定 RENDER_URL secret，請見 workflow 檔頂部說明。"
+            exit 1
+          fi
+          echo "Pinging ${{ secrets.RENDER_URL }}/health ..."
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 "${{ secrets.RENDER_URL }}/health")
+          echo "HTTP status: $code"
+          if [ "$code" -ge 200 ] && [ "$code" -lt 400 ]; then
+            echo "✅ 服務正常。"
+          else
+            echo "⚠️ 非預期狀態碼：$code（可能正在冷啟動，下次排程會再試）。"
+          fi

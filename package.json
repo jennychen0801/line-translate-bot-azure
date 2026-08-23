@@ -1,0 +1,17 @@
+{
+  "name": "line-translate-bot",
+  "version": "2.1.0",
+  "description": "LINE group translation bot (Traditional Chinese <-> Indonesian). Azure OpenAI (GPT-5 mini / compatible) primary + Gemini 3.5 Flash-Lite fallback.",
+  "main": "index.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@line/bot-sdk": "^9.5.0",
+    "express": "^4.19.2"
+  }
+}

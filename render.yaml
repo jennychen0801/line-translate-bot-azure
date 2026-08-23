@@ -1,0 +1,38 @@
+# Render Blueprint（部署藍圖）
+# 用途：用 Blueprint 部署時自動套用服務設定，含 Health Check 路徑（/health）。
+#
+# 使用方式：Render Dashboard → New + → Blueprint → 連結你的 repo。
+# 金鑰不寫在這裡（避免外洩）；sync: false 代表由你在 Dashboard 手動填值。
+#
+# 注意：Health Check 讓部署更穩、壞掉自動重啟，但「不能防止免費方案休眠」。
+#      防休眠仍需外部排程（GitHub Actions / cron-job.org / UptimeRobot）定時打 /health。
+
+services:
+  - type: web
+    name: line-translate-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # --- LINE（必填） ---
+      - key: CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: CHANNEL_SECRET
+        sync: false
+      # --- Azure OpenAI（主翻） ---
+      - key: AZURE_OPENAI_ENDPOINT
+        sync: false
+      - key: AZURE_OPENAI_KEY
+        sync: false
+      - key: AZURE_OPENAI_DEPLOYMENT
+        sync: false
+      - key: AZURE_OPENAI_API_VERSION
+        value: '2025-04-01-preview'
+      # --- Gemini（備援） ---
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
