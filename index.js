@@ -114,21 +114,38 @@ function buildSystemPrompt(dir) {
 }
 
 // 是否為「參數不相容」造成的 400（用來決定要不要退回舊版參數）
+// 注意：排除「API version not supported」，那是端點/版本問題，換參數重試沒用
 function looksLikeParamError(status, body) {
   if (status !== 400) return false;
-  return /max_tokens|max_completion_tokens|temperature|unsupported|Unrecognized|not supported/i.test(
+  if (/API version/i.test(body)) return false;
+  return /max_tokens|max_completion_tokens|temperature|reasoning_effort|unsupported_parameter|Unrecognized|not supported/i.test(
     body
+  );
+}
+
+// 正規化 endpoint：允許使用者填 https://x.openai.azure.com、.../openai、.../openai/v1
+const AOAI_BASE = (AZURE_OPENAI_ENDPOINT || '')
+  .replace(/\/+$/, '')
+  .replace(/\/openai(\/v1)?$/i, '');
+
+// v1 API（GA，不需 api-version）找不到時才改走舊版 deployments 路徑
+let aoaiUseLegacyPath = false;
+
+function azureUrl() {
+  if (!aoaiUseLegacyPath) return `${AOAI_BASE}/openai/v1/chat/completions`;
+  return (
+    `${AOAI_BASE}/openai/deployments/` +
+    `${encodeURIComponent(AZURE_OPENAI_DEPLOYMENT)}/chat/completions` +
+    `?api-version=${AZURE_OPENAI_API_VERSION}`
   );
 }
 
 // 呼叫一次 Azure OpenAI（modern=true 用新版參數；modern=false 用舊版參數）
 async function callAzureOnce(text, dir, modern) {
-  const url =
-    `${AZURE_OPENAI_ENDPOINT.replace(/\/$/, '')}/openai/deployments/` +
-    `${encodeURIComponent(AZURE_OPENAI_DEPLOYMENT)}/chat/completions` +
-    `?api-version=${AZURE_OPENAI_API_VERSION}`;
+  const url = azureUrl();
 
   const payload = {
+    model: AZURE_OPENAI_DEPLOYMENT, // v1 路徑用 body 的 model 指定 deployment；舊版路徑會忽略
     messages: [
       { role: 'system', content: buildSystemPrompt(dir) },
       { role: 'user', content: text },
@@ -138,6 +155,7 @@ async function callAzureOnce(text, dir, modern) {
   if (modern) {
     // 新版模型（GPT-5 系列）：用 max_completion_tokens、不帶 temperature（僅支援預設值）
     payload.max_completion_tokens = 1024;
+    payload.reasoning_effort = 'minimal'; // 翻譯不需推理；預設 medium 會慢好幾秒且吃掉 token 額度
   } else {
     // 舊版模型（GPT-4o / GPT-4.1 等）：用 max_tokens，可帶 temperature
     payload.max_tokens = 1024;
@@ -175,11 +193,16 @@ async function callAzureOnce(text, dir, modern) {
   }
 }
 
-// (1) 主翻：Azure OpenAI（自動相容新版/舊版模型參數）
+// (1) 主翻：Azure OpenAI（自動相容新版/舊版模型參數、v1/舊版路徑）
 async function translateWithAzureOpenAI(text, dir) {
   try {
     return await callAzureOnce(text, dir, true); // 先試新版參數
   } catch (e) {
+    if (e.status === 404 && !aoaiUseLegacyPath) {
+      console.warn('[azure] v1 路徑 404，改用舊版 deployments 路徑（api-version=' + AZURE_OPENAI_API_VERSION + '）');
+      aoaiUseLegacyPath = true;
+      return translateWithAzureOpenAI(text, dir);
+    }
     if (looksLikeParamError(e.status, e.body)) {
       console.warn('[azure] 新版參數不相容，改用舊版參數重試。');
       return await callAzureOnce(text, dir, false); // 退回舊版參數
@@ -191,6 +214,7 @@ async function translateWithAzureOpenAI(text, dir) {
 // (2) 備援：Gemini（智慧重試）
 const GEMINI_RETRY_SERVER = 2;
 const GEMINI_RETRY_429 = 1;
+const GEMINI_TIMEOUT_MS = 20000;
 
 async function translateWithGemini(text, dir, serverAttempt = 0, rlAttempt = 0) {
   const prompt = `${buildSystemPrompt(dir)}\n\n原文：\n${text}`;
@@ -200,7 +224,15 @@ async function translateWithGemini(text, dir, serverAttempt = 0, rlAttempt = 0) 
     `${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${GEMINI_API_KEY}`;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
+  const timeout = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+
+  // Gemini 3 系列：不要調低 temperature（官方警告會 looping），用 thinkingLevel 控延遲
+  const generationConfig = { maxOutputTokens: 1024 };
+  if (/gemini-3/i.test(GEMINI_MODEL)) {
+    generationConfig.thinkingConfig = { thinkingLevel: 'minimal' };
+  } else {
+    generationConfig.temperature = 0.3;
+  }
 
   try {
     const resp = await fetch(url, {
@@ -209,7 +241,7 @@ async function translateWithGemini(text, dir, serverAttempt = 0, rlAttempt = 0) 
       signal: controller.signal,
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
+        generationConfig,
       }),
     });
 
@@ -243,17 +275,19 @@ async function translateWithGemini(text, dir, serverAttempt = 0, rlAttempt = 0) 
 
     const data = await resp.json();
     const out = data?.candidates?.[0]?.content?.parts
-      ?.map((p) => p.text)
+      ?.filter((p) => !p.thought)
+      .map((p) => p.text || '')
       .join('')
       .trim();
-    if (!out) throw new Error('Gemini 回傳空內容');
+    if (!out) {
+      const reason = data?.candidates?.[0]?.finishReason || data?.promptFeedback?.blockReason;
+      throw new Error(`Gemini 回傳空內容（${reason || 'unknown'}）`);
+    }
     return out;
   } catch (err) {
-    if (err.name === 'AbortError' && serverAttempt < GEMINI_RETRY_SERVER) {
-      console.warn(`[gemini] 逾時，重試（第 ${serverAttempt + 1} 次）`);
-      clearTimeout(timeout);
-      await sleep(500);
-      return translateWithGemini(text, dir, serverAttempt + 1, rlAttempt);
+    // 逾時不重試：同一請求再等一輪只會讓 replyToken 過期
+    if (err.name === 'AbortError') {
+      throw new Error(`Gemini 逾時（>${GEMINI_TIMEOUT_MS}ms，model=${GEMINI_MODEL}）`);
     }
     throw err;
   } finally {
