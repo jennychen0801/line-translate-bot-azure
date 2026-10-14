@@ -282,7 +282,9 @@ GitHub Actions 的設定方式（作為輔助）：repo → Settings → Secrets
 | Log 訊息                                                 | 原因                                                       | 處理方式                                                                 |
 | -------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------ |
 | `[reply] (azure-openai) ...`                           | ✅ 正常，由主翻回覆                                        | —                                                                       |
-| `[reply] (gemini) ...`                                 | 主翻失敗，由備援回覆                                       | 往上找`[translate] Azure OpenAI 失敗` 那一行，看原因                   |
+| `[reply] (gemini) ...`                                 | 主翻失敗，由備援回覆                                       | 往上找`[translate] azure-openai 失敗` 那一行，看原因                   |
+| `[translate] xxx 失敗：譯文與原文相同` / `目標為…但譯文…` | 模型沒翻、原樣照抄或翻錯語言（已擋下，不會丟回群組）       | 自動換下一個引擎；頻繁發生時把原句丟 `/debug/translate?text=...` 重現  |
+| `[handleEvent] 所有翻譯引擎都失敗，不回覆`             | 主翻與備援都失敗或都沒通過驗證                             | 看同一行列出的各引擎原因                                               |
 | `Azure OpenAI HTTP 400: ... API version not supported` | 舊版程式走 deployments 路徑，帶了不支援的 api-version      | 更新到最新程式（已改走 v1 API）                                          |
 | `[azure] v1 路徑 404，改用舊版 deployments 路徑`       | 這個資源不支援 v1 API                                      | 如果接著又出現 400 / 404，請確認 endpoint 和`AZURE_OPENAI_API_VERSION` |
 | `Azure OpenAI HTTP 401`                                | 金鑰錯誤，或金鑰和 endpoint 不是同一個資源                 | 重新複製 KEY 1 和 Endpoint                                               |
