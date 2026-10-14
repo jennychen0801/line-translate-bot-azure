@@ -19,18 +19,18 @@
 
 ## 環境變數總表
 
-| 變數 | 必填 | 預設值 | 說明 |
-|---|---|---|---|
-| `CHANNEL_ACCESS_TOKEN` | ✅ | — | LINE Messaging API token |
-| `CHANNEL_SECRET` | ✅ | — | LINE Channel secret（用來驗證 webhook 簽章） |
-| `AZURE_OPENAI_ENDPOINT` | 主翻 | — | 例：`https://xxxx.openai.azure.com` 或 `https://xxxx.cognitiveservices.azure.com`。結尾多打 `/`、`/openai`、`/openai/v1` 程式都會自動去掉 |
-| `AZURE_OPENAI_KEY` | 主翻 | — | Keys and Endpoint 頁的 KEY 1 |
-| `AZURE_OPENAI_DEPLOYMENT` | 主翻 | — | **部署名稱**（deployment name），不是模型名稱，也不是資源名稱 |
-| `AZURE_OPENAI_API_VERSION` | ❌ | `2025-04-01-preview` | **只有 v1 回 404、改走舊版路徑時才會用到**。正常情況不必理會 |
-| `GEMINI_API_KEY` | 備援 | — | Google AI Studio 的 API key |
-| `GEMINI_MODEL` | ❌ | `gemini-3.1-flash-lite` | ⚠️ Render Dashboard 上設定的值會**蓋過**程式預設值，換模型時要記得改這裡 |
-| `DEBUG_TOKEN` | ❌ | — | 設定後才會開放 `/debug/translate` 線上診斷端點；沒設定時這個端點回 404 |
-| `PORT` | ❌ | `3000` | Render 會自動注入 |
+| 變數                         | 必填 | 預設值                    | 說明                                                                                                                                                |
+| ---------------------------- | ---- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CHANNEL_ACCESS_TOKEN`     | ✅   | —                        | LINE Messaging API token                                                                                                                            |
+| `CHANNEL_SECRET`           | ✅   | —                        | LINE Channel secret（用來驗證 webhook 簽章）                                                                                                        |
+| `AZURE_OPENAI_ENDPOINT`    | 主翻 | —                        | 例：`https://xxxx.openai.azure.com` 或 `https://xxxx.cognitiveservices.azure.com`。結尾多打 `/`、`/openai`、`/openai/v1` 程式都會自動去掉 |
+| `AZURE_OPENAI_KEY`         | 主翻 | —                        | Keys and Endpoint 頁的 KEY 1                                                                                                                        |
+| `AZURE_OPENAI_DEPLOYMENT`  | 主翻 | —                        | **部署名稱**（deployment name），不是模型名稱，也不是資源名稱                                                                                 |
+| `AZURE_OPENAI_API_VERSION` | ❌   | `2025-04-01-preview`    | **只有 v1 回 404、改走舊版路徑時才會用到**。正常情況不必理會                                                                                  |
+| `GEMINI_API_KEY`           | 備援 | —                        | Google AI Studio 的 API key                                                                                                                         |
+| `GEMINI_MODEL`             | ❌   | `gemini-3.1-flash-lite` | ⚠️ Render Dashboard 上設定的值會**蓋過**程式預設值，換模型時要記得改這裡                                                                    |
+| `DEBUG_TOKEN`              | ❌   | —                        | 設定後才會開放`/debug/translate` 線上診斷端點；沒設定時這個端點回 404                                                                             |
+| `PORT`                     | ❌   | `3000`                  | Render 會自動注入                                                                                                                                   |
 
 > Azure 和 Gemini 至少要設定其中一組，不然程式啟動時就會直接結束（`[FATAL]`）。
 
@@ -42,22 +42,22 @@
 
 `gpt-4o-mini`、`gpt-4.1-mini` 已經被標為**已棄用（Deprecated）**，新訂閱多半無法部署。請選 **GA** 模型：
 
-| 模型 | 狀態 | 能否新部署 | 說明 |
-|---|---|---|---|
-| gpt-4o-mini | 已棄用 | ❌ | 部署時會看到「已棄用」訊息 |
-| gpt-4.1-mini | 已棄用 | ⚠️ 多半不行 | — |
-| **gpt-5-mini** | **GA** | ✅ | **推薦**：便宜，翻譯品質好 |
-| gpt-5-nano | GA | ✅ | 更便宜，品質略低但也夠用 |
+| 模型                 | 狀態         | 能否新部署    | 說明                             |
+| -------------------- | ------------ | ------------- | -------------------------------- |
+| gpt-4o-mini          | 已棄用       | ❌            | 部署時會看到「已棄用」訊息       |
+| gpt-4.1-mini         | 已棄用       | ⚠️ 多半不行 | —                               |
+| **gpt-5-mini** | **GA** | ✅            | **推薦**：便宜，翻譯品質好 |
+| gpt-5-nano           | GA           | ✅            | 更便宜，品質略低但也夠用         |
 
 > GPT-5 系列預設會「推理」（`reasoning_effort: medium`），簡單一句翻譯也可能要 5–15 秒，推理用的 token 也會吃掉輸出額度。
 > 程式已固定送 `reasoning_effort: 'minimal'`，回應大約 1–3 秒。
 
 ### Gemini（備援）
 
-| 模型 | 實測延遲 | 說明 |
-|---|---|---|
-| **gemini-3.1-flash-lite** | ~2 秒 | **目前預設** |
-| gemini-3.5-flash-lite | ~34 秒 | ❌ 太慢，會撞到 20 秒逾時，replyToken 也會過期 |
+| 模型                            | 實測延遲 | 說明                                           |
+| ------------------------------- | -------- | ---------------------------------------------- |
+| **gemini-3.1-flash-lite** | ~2 秒    | **目前預設**                             |
+| gemini-3.5-flash-lite           | ~34 秒   | ❌ 太慢，會撞到 20 秒逾時，replyToken 也會過期 |
 
 > Gemini 3 系列**不要調低 `temperature`**：Google 官方警告調低會造成 looping，模型生成停不下來，一路拖到逾時。
 > 程式偵測到模型名稱含 `gemini-3` 時，不會送 temperature，改送 `thinkingConfig: { thinkingLevel: 'minimal' }`；其他模型則照舊送 `temperature: 0.3`。
@@ -95,11 +95,11 @@
 
 ### 1) LINE Messaging API（必填）
 
-1. 到 <https://developers.line.biz/console/> → 建立 Provider → 建立 **Messaging API channel**。
+1. 到 [https://developers.line.biz/console/](https://developers.line.biz/console/) → 建立 Provider → 建立 **Messaging API channel**。
 2. **Basic settings** → 複製 **Channel secret**，填入 `CHANNEL_SECRET`。
 3. **Messaging API** → **Channel access token** 按 Issue → 複製，填入 `CHANNEL_ACCESS_TOKEN`。
 4. **Messaging API** 頁：**Use webhook** 開，**Allow bot to join group chats** 開，**Auto-reply / Greeting** 關。
-5. **LINE Official Account Manager**（<https://manager.line.biz>）→ **設定 > 回應設定**：**聊天（Chat）關，Webhook 開**。
+5. **LINE Official Account Manager**（[https://manager.line.biz](https://manager.line.biz)）→ **設定 > 回應設定**：**聊天（Chat）關，Webhook 開**。
 
 ### 2) Azure OpenAI（主翻）
 
@@ -122,7 +122,7 @@ Invoke-RestMethod -Method Post -Uri '<ENDPOINT>/openai/v1/chat/completions' -Hea
 
 ### 3) Gemini API Key（備援，選用但建議設定）
 
-到 **Google AI Studio** <https://aistudio.google.com> → **Get API key**，填入 `GEMINI_API_KEY`。免費、不用綁卡。
+到 **Google AI Studio** [https://aistudio.google.com](https://aistudio.google.com) → **Get API key**，填入 `GEMINI_API_KEY`。免費、不用綁卡。
 
 **驗證並量延遲：**
 
@@ -150,7 +150,7 @@ node --env-file=.env index.js   # Node 20.6+ 內建讀 .env，不需 dotenv
 ## 部署到 Render
 
 1. 推上 GitHub（`main` 分支；`render.yaml` 已設 `autoDeploy: true`，之後 push 就會自動部署）。
-2. 到 <https://render.com> → **New +** → **Blueprint** → 選這個 repo（會讀取 `render.yaml`）。
+2. 到 [https://render.com](https://render.com) → **New +** → **Blueprint** → 選這個 repo（會讀取 `render.yaml`）。
 3. 填入 `sync: false` 的環境變數：
    - 必填：`CHANNEL_ACCESS_TOKEN`、`CHANNEL_SECRET`
    - Azure：`AZURE_OPENAI_ENDPOINT`、`AZURE_OPENAI_KEY`、`AZURE_OPENAI_DEPLOYMENT`
@@ -183,7 +183,7 @@ node --env-file=.env index.js   # Node 20.6+ 內建讀 .env，不需 dotenv
 
 **2. 設到 Render**
 
-1. 打開 <https://dashboard.render.com>，點你的服務（`line-translate-bot`）。
+1. 打開 [https://dashboard.render.com](https://dashboard.render.com)，點你的服務（`line-translate-bot`）。
 2. 左側選 **Environment**。
 3. 先看清單裡有沒有 `DEBUG_TOKEN`：
    - **已經有**（用 Blueprint 建立時 `generateValue: true` 自動產生的）：點眼睛圖示就能看到值，直接拿來用，不用做第 1 步。
@@ -200,12 +200,12 @@ node --env-file=.env index.js   # Node 20.6+ 內建讀 .env，不需 dotenv
 https://<你的服務>.onrender.com/debug/translate?token=<DEBUG_TOKEN>&engine=all
 ```
 
-| 參數 | 預設 | 說明 |
-|---|---|---|
-| `token` | — | 必填，要等於 `DEBUG_TOKEN`；不符或沒設定時回 404 |
-| `engine` | `all` | `azure` / `gemini` / `all`（同時跑兩個並比較） |
-| `text` | `你好，今天晚上要加班嗎？` | 測試句；可以換成印尼文測反方向，例如 `Besok saya libur` |
-| `model` | `GEMINI_MODEL` | 臨時覆寫 Gemini 模型，**不用改環境變數、不用重新部署**就能比較不同模型 |
+| 參數       | 預設                         | 說明                                                                                                        |
+| ---------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `token`  | —                           | 必填，要等於`DEBUG_TOKEN`；不符或沒設定時回 404。自己產生的長亂碼 (上述)。                                |
+| `engine` | `all`                      | `azure` / `gemini` / `all`（同時跑兩個並比較）                                                        |
+| `text`   | `你好，今天晚上要加班嗎？` | 測試句；可以換成印尼文測反方向，例如`Besok saya libur`。中文要先做 URL 編碼，不過瀏覽器網址列會自動處理。 |
+| `model`  | `GEMINI_MODEL`             | 臨時覆寫 Gemini 模型，**不用改環境變數、不用重新部署**就能比較不同模型，例如 gemini-2.5-flash`。`   |
 
 回傳範例：
 
@@ -226,11 +226,11 @@ https://<你的服務>.onrender.com/debug/translate?token=<DEBUG_TOKEN>&engine=a
 
 ### 打不開時
 
-| 結果 | 代表什麼 |
-|---|---|
-| 回傳 JSON，`results` 裡有 `ok: true` | ✅ 設定成功，翻譯引擎也正常 |
-| 空白頁 / 404 | token 打錯、`DEBUG_TOKEN` 沒設定，或還沒部署完。確認 Events 是 `Deploy live` |
-| `Cannot GET /debug/translate` | 跑的還是舊版程式，最新的 commit 沒部署上去。到 Events 確認最新部署的 commit |
+| 結果                                     | 代表什麼                                                                         |
+| ---------------------------------------- | -------------------------------------------------------------------------------- |
+| 回傳 JSON，`results` 裡有 `ok: true` | ✅ 設定成功，翻譯引擎也正常                                                      |
+| 空白頁 / 404                             | token 打錯、`DEBUG_TOKEN` 沒設定，或還沒部署完。確認 Events 是 `Deploy live` |
+| `Cannot GET /debug/translate`          | 跑的還是舊版程式，最新的 commit 沒部署上去。到 Events 確認最新部署的 commit      |
 
 ### 安全注意事項
 
@@ -261,13 +261,13 @@ Render 免費方案的 Web Service 閒置 15 分鐘就會休眠，冷啟動要 3
 
 Health Check 是 Render 內部的探測，**防不了休眠**，必須靠外部排程定時打服務。
 
-| 方案 | 可靠度 | 說明 |
-|---|---|---|
-| **cron-job.org** | ✅ **推薦** | 免費，時間準。URL 設 `https://<服務>.onrender.com/health`，**每 5 分鐘**一次 |
-| UptimeRobot | ✅ | 免費方案每 5 分鐘一次，還附停機通知 |
-| GitHub Actions（內建 `keep-alive.yml`） | ⚠️ **不可靠** | 雖然設定每 10 分鐘，但 GitHub 會壓低免費 repo 的排程頻率，**實際好幾個小時才跑一次**，擋不住休眠。只能當輔助 |
-| Render 付費（約 US$7/月） | ✅ | 不會休眠，不需要保活 |
-| Azure App Service B1 + Always On | ✅ | 約 US$13/月，可以從 VS Enterprise 額度扣，等於免費，而且和 Azure OpenAI 在同一個雲 |
+| 方案                                     | 可靠度               | 說明                                                                                                               |
+| ---------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **cron-job.org**                   | ✅**推薦**     | 免費，時間準。URL 設`https://<服務>.onrender.com/health`，**每 5 分鐘**一次                                |
+| UptimeRobot                              | ✅                   | 免費方案每 5 分鐘一次，還附停機通知                                                                                |
+| GitHub Actions（內建`keep-alive.yml`） | ⚠️**不可靠** | 雖然設定每 10 分鐘，但 GitHub 會壓低免費 repo 的排程頻率，**實際好幾個小時才跑一次**，擋不住休眠。只能當輔助 |
+| Render 付費（約 US$7/月）                | ✅                   | 不會休眠，不需要保活                                                                                               |
+| Azure App Service B1 + Always On         | ✅                   | 約 US$13/月，可以從 VS Enterprise 額度扣，等於免費，而且和 Azure OpenAI 在同一個雲                                 |
 
 > 進階用法：cron-job.org 改打 `/debug/translate?token=...&engine=gemini`，保活的同時也監控備援是否正常（失敗時 cron-job.org 會寄信通知）。代價是每天約 288 次 Gemini 呼叫。
 
@@ -279,23 +279,23 @@ GitHub Actions 的設定方式（作為輔助）：repo → Settings → Secrets
 
 到 Render Dashboard → **Logs**，對照下表：
 
-| Log 訊息 | 原因 | 處理方式 |
-|---|---|---|
-| `[reply] (azure-openai) ...` | ✅ 正常，由主翻回覆 | — |
-| `[reply] (gemini) ...` | 主翻失敗，由備援回覆 | 往上找 `[translate] Azure OpenAI 失敗` 那一行，看原因 |
-| `Azure OpenAI HTTP 400: ... API version not supported` | 舊版程式走 deployments 路徑，帶了不支援的 api-version | 更新到最新程式（已改走 v1 API） |
-| `[azure] v1 路徑 404，改用舊版 deployments 路徑` | 這個資源不支援 v1 API | 如果接著又出現 400 / 404，請確認 endpoint 和 `AZURE_OPENAI_API_VERSION` |
-| `Azure OpenAI HTTP 401` | 金鑰錯誤，或金鑰和 endpoint 不是同一個資源 | 重新複製 KEY 1 和 Endpoint |
-| `Azure OpenAI HTTP 404 ... DeploymentNotFound` | `AZURE_OPENAI_DEPLOYMENT` 填錯 | 填 Foundry 裡的**部署名稱** |
-| `Azure OpenAI 失敗：This operation was aborted` | Azure 超過 15 秒沒回應 | 確認有沒有送 `reasoning_effort: minimal`（舊版程式沒有） |
-| `Gemini 逾時（>20000ms，model=...）` | 這個模型太慢 | 用 `/debug/translate?model=...` 挑一個更快的，再改 `GEMINI_MODEL` |
-| `Gemini HTTP 400 ... thinking` | 這個模型不支援 `thinkingLevel: minimal` | 換模型，或修改 `translateWithGemini` 中的 `thinkingConfig` |
-| `Gemini HTTP 403` | key 所屬的專案沒有啟用 API，或 key 設了 IP / referrer 限制 | 到 Google Cloud Console 檢查這把 key 的限制設定 |
-| `Gemini 每日免費額度已用盡（429）` | 免費額度用完了 | 台灣時間下午 4 點重置 |
-| `[handleEvent] ... Invalid reply token` | 處理太久，replyToken 已過期 | 通常是主翻和備援都很慢，先用 `/debug/translate` 量延遲 |
-| `[getSpeakerName] 取暱稱失敗` | 拿不到暱稱（不影響翻譯） | 會以「對方」顯示 |
-| 傳了訊息但 **完全沒有 log** | 服務在休眠，冷啟動期間訊息遺失；或 webhook 沒設定好 | 見「保活」；到 LINE Console 按 Verify 確認 |
-| 有 `[reply]` 但群組沒看到訊息 | Bot 不在那個群組，或聊天模式沒關 | 確認 LINE OA Manager 回應設定：聊天關、Webhook 開 |
+| Log 訊息                                                 | 原因                                                       | 處理方式                                                                 |
+| -------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `[reply] (azure-openai) ...`                           | ✅ 正常，由主翻回覆                                        | —                                                                       |
+| `[reply] (gemini) ...`                                 | 主翻失敗，由備援回覆                                       | 往上找`[translate] Azure OpenAI 失敗` 那一行，看原因                   |
+| `Azure OpenAI HTTP 400: ... API version not supported` | 舊版程式走 deployments 路徑，帶了不支援的 api-version      | 更新到最新程式（已改走 v1 API）                                          |
+| `[azure] v1 路徑 404，改用舊版 deployments 路徑`       | 這個資源不支援 v1 API                                      | 如果接著又出現 400 / 404，請確認 endpoint 和`AZURE_OPENAI_API_VERSION` |
+| `Azure OpenAI HTTP 401`                                | 金鑰錯誤，或金鑰和 endpoint 不是同一個資源                 | 重新複製 KEY 1 和 Endpoint                                               |
+| `Azure OpenAI HTTP 404 ... DeploymentNotFound`         | `AZURE_OPENAI_DEPLOYMENT` 填錯                           | 填 Foundry 裡的**部署名稱**                                        |
+| `Azure OpenAI 失敗：This operation was aborted`        | Azure 超過 15 秒沒回應                                     | 確認有沒有送`reasoning_effort: minimal`（舊版程式沒有）                |
+| `Gemini 逾時（>20000ms，model=...）`                   | 這個模型太慢                                               | 用`/debug/translate?model=...` 挑一個更快的，再改 `GEMINI_MODEL`     |
+| `Gemini HTTP 400 ... thinking`                         | 這個模型不支援`thinkingLevel: minimal`                   | 換模型，或修改`translateWithGemini` 中的 `thinkingConfig`            |
+| `Gemini HTTP 403`                                      | key 所屬的專案沒有啟用 API，或 key 設了 IP / referrer 限制 | 到 Google Cloud Console 檢查這把 key 的限制設定                          |
+| `Gemini 每日免費額度已用盡（429）`                     | 免費額度用完了                                             | 台灣時間下午 4 點重置                                                    |
+| `[handleEvent] ... Invalid reply token`                | 處理太久，replyToken 已過期                                | 通常是主翻和備援都很慢，先用`/debug/translate` 量延遲                  |
+| `[getSpeakerName] 取暱稱失敗`                          | 拿不到暱稱（不影響翻譯）                                   | 會以「對方」顯示                                                         |
+| 傳了訊息但**完全沒有 log**                         | 服務在休眠，冷啟動期間訊息遺失；或 webhook 沒設定好        | 見「保活」；到 LINE Console 按 Verify 確認                               |
+| 有`[reply]` 但群組沒看到訊息                           | Bot 不在那個群組，或聊天模式沒關                           | 確認 LINE OA Manager 回應設定：聊天關、Webhook 開                        |
 
 ---
 
@@ -330,9 +330,9 @@ line-translate-bot-azure/
 
 ### HTTP 端點
 
-| 方法 | 路徑 | 說明 |
-|---|---|---|
-| GET | `/` | 顯示 `LINE translate bot is running.` |
-| GET | `/health` | 回 `OK`，給保活排程和 Render Health Check 用 |
-| GET | `/debug/translate` | 線上診斷翻譯引擎（需要 `DEBUG_TOKEN`） |
-| POST | `/webhook` | LINE webhook 入口（會驗證簽章） |
+| 方法 | 路徑                 | 說明                                          |
+| ---- | -------------------- | --------------------------------------------- |
+| GET  | `/`                | 顯示`LINE translate bot is running.`        |
+| GET  | `/health`          | 回`OK`，給保活排程和 Render Health Check 用 |
+| GET  | `/debug/translate` | 線上診斷翻譯引擎（需要`DEBUG_TOKEN`）       |
+| POST | `/webhook`         | LINE webhook 入口（會驗證簽章）               |

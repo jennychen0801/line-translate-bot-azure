@@ -34,7 +34,7 @@ const {
 
   // Gemini（備援）
   GEMINI_API_KEY,
-  GEMINI_MODEL = 'gemini-3.1-flash-lite',
+  GEMINI_MODEL = 'gemini-2.5-flash',
 
   PORT = 3000,
 } = process.env;
