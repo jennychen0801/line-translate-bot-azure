@@ -169,6 +169,33 @@ node --env-file=.env index.js   # Node 20.6+ 內建讀 .env，不需 dotenv
 
 這個端點用 **Render 上實際設定的金鑰和模型**跑一次翻譯，回傳延遲、譯文或錯誤訊息。不用進 LINE 群組，也不用翻 log，就能確認上線版本能不能正常運作。
 
+### 設定 `DEBUG_TOKEN`
+
+`DEBUG_TOKEN` 就是一串你自己產生的長亂碼。設在 Render 環境變數裡，再當成網址參數 `token` 帶上，才能打開這個端點。
+
+**1. 產生 token（PowerShell）**
+
+```powershell
+-join ((48..57)+(65..90)+(97..122) | Get-Random -Count 32 | % {[char]$_})
+```
+
+會印出 32 字元的英數字。只用英數字，放進網址不用另外編碼。
+
+**2. 設到 Render**
+
+1. 打開 <https://dashboard.render.com>，點你的服務（`line-translate-bot`）。
+2. 左側選 **Environment**。
+3. 先看清單裡有沒有 `DEBUG_TOKEN`：
+   - **已經有**（用 Blueprint 建立時 `generateValue: true` 自動產生的）：點眼睛圖示就能看到值，直接拿來用，不用做第 1 步。
+   - **沒有**：按 **+ Add Environment Variable**，Key 填 `DEBUG_TOKEN`，Value 貼上第 1 步產生的值。
+4. 順便確認 `GEMINI_MODEL` 是不是 `gemini-3.1-flash-lite`，不是就一起改。
+5. 按 **Save, rebuild, and deploy**（只按 Save 不會套用到正在跑的服務）。
+6. 等 **Events** 顯示 `Deploy live`，大約 1–2 分鐘。
+
+**本機（選用）：** 在 `.env` 設 `DEBUG_TOKEN=<你的值>`，執行 `node --env-file=.env index.js`，然後打開 `http://localhost:3000/debug/translate?token=...`。
+
+### 使用方式
+
 ```
 https://<你的服務>.onrender.com/debug/translate?token=<DEBUG_TOKEN>&engine=all
 ```
@@ -196,6 +223,21 @@ https://<你的服務>.onrender.com/debug/translate?token=<DEBUG_TOKEN>&engine=a
 - `ok: true` 而且 `ms` < 5000 → 正常。
 - `engine` 名稱中的 `v1` / `legacy` 表示 Azure 目前走哪一條路徑。
 - `ok: false` → 看 `error` 欄位，對照下方的「依 log 排錯」。
+
+### 打不開時
+
+| 結果 | 代表什麼 |
+|---|---|
+| 回傳 JSON，`results` 裡有 `ok: true` | ✅ 設定成功，翻譯引擎也正常 |
+| 空白頁 / 404 | token 打錯、`DEBUG_TOKEN` 沒設定，或還沒部署完。確認 Events 是 `Deploy live` |
+| `Cannot GET /debug/translate` | 跑的還是舊版程式，最新的 commit 沒部署上去。到 Events 確認最新部署的 commit |
+
+### 安全注意事項
+
+- token 是放在網址裡的，所以會留在瀏覽器歷史紀錄和 Render 的 request log 裡。**不要把完整網址貼到公開的地方。**
+- 外洩的話，到 Render 換一個新值，再 **Save, rebuild, and deploy**，舊的就失效了。
+- 最糟的情況是被別人拿去狂打這個端點，耗掉 Azure 和 Gemini 額度，不會外洩其他金鑰。
+- 只是偶爾檢查的話，可以測完就把 `DEBUG_TOKEN` 刪掉，端點會恢復成 404。
 
 ---
 
