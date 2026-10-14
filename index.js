@@ -34,7 +34,7 @@ const {
 
   // Gemini（備援）
   GEMINI_API_KEY,
-  GEMINI_MODEL = 'gemini-3.5-flash-lite',
+  GEMINI_MODEL = 'gemini-3.1-flash-lite',
 
   PORT = 3000,
 } = process.env;
@@ -216,19 +216,25 @@ const GEMINI_RETRY_SERVER = 2;
 const GEMINI_RETRY_429 = 1;
 const GEMINI_TIMEOUT_MS = 20000;
 
-async function translateWithGemini(text, dir, serverAttempt = 0, rlAttempt = 0) {
+async function translateWithGemini(
+  text,
+  dir,
+  serverAttempt = 0,
+  rlAttempt = 0,
+  model = GEMINI_MODEL
+) {
   const prompt = `${buildSystemPrompt(dir)}\n\n原文：\n${text}`;
 
   const url =
     `https://generativelanguage.googleapis.com/v1beta/models/` +
-    `${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${GEMINI_API_KEY}`;
+    `${encodeURIComponent(model)}:generateContent?key=${GEMINI_API_KEY}`;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
 
   // Gemini 3 系列：不要調低 temperature（官方警告會 looping），用 thinkingLevel 控延遲
   const generationConfig = { maxOutputTokens: 1024 };
-  if (/gemini-3/i.test(GEMINI_MODEL)) {
+  if (/gemini-3/i.test(model)) {
     generationConfig.thinkingConfig = { thinkingLevel: 'minimal' };
   } else {
     generationConfig.temperature = 0.3;
@@ -257,7 +263,7 @@ async function translateWithGemini(text, dir, serverAttempt = 0, rlAttempt = 0) 
           console.warn(`[gemini] 429 限流，2s 後重試（第 ${rlAttempt + 1} 次）`);
           clearTimeout(timeout);
           await sleep(2000);
-          return translateWithGemini(text, dir, serverAttempt, rlAttempt + 1);
+          return translateWithGemini(text, dir, serverAttempt, rlAttempt + 1, model);
         }
         throw new Error(`Gemini HTTP 429: ${body.slice(0, 200)}`);
       }
@@ -267,7 +273,7 @@ async function translateWithGemini(text, dir, serverAttempt = 0, rlAttempt = 0) 
         console.warn(`[gemini] HTTP ${resp.status}（過載），${wait}ms 後重試（第 ${serverAttempt + 1} 次）`);
         clearTimeout(timeout);
         await sleep(wait);
-        return translateWithGemini(text, dir, serverAttempt + 1, rlAttempt);
+        return translateWithGemini(text, dir, serverAttempt + 1, rlAttempt, model);
       }
 
       throw new Error(`Gemini HTTP ${resp.status}: ${body.slice(0, 200)}`);
@@ -287,7 +293,7 @@ async function translateWithGemini(text, dir, serverAttempt = 0, rlAttempt = 0) 
   } catch (err) {
     // 逾時不重試：同一請求再等一輪只會讓 replyToken 過期
     if (err.name === 'AbortError') {
-      throw new Error(`Gemini 逾時（>${GEMINI_TIMEOUT_MS}ms，model=${GEMINI_MODEL}）`);
+      throw new Error(`Gemini 逾時（>${GEMINI_TIMEOUT_MS}ms，model=${model}）`);
     }
     throw err;
   } finally {
@@ -368,6 +374,49 @@ const app = express();
 
 app.get('/', (_req, res) => res.status(200).send('LINE translate bot is running.'));
 app.get('/health', (_req, res) => res.status(200).send('OK'));
+
+// ---------------------------------------------------------------------------
+// 線上診斷：用「部署環境的實際金鑰與模型」測翻譯引擎
+//   GET /debug/translate?token=<DEBUG_TOKEN>&engine=gemini|azure|all&text=你好&model=<可選，覆寫 Gemini 模型>
+//   未設定 DEBUG_TOKEN 時整個端點回 404
+// ---------------------------------------------------------------------------
+app.get('/debug/translate', async (req, res) => {
+  const { DEBUG_TOKEN } = process.env;
+  if (!DEBUG_TOKEN || req.query.token !== DEBUG_TOKEN) return res.status(404).end();
+
+  const text = String(req.query.text || '你好，今天晚上要加班嗎？');
+  const engine = String(req.query.engine || 'all');
+  const model = req.query.model ? String(req.query.model) : GEMINI_MODEL;
+  const dir = decideDirection(text);
+  if (!dir) return res.status(400).json({ error: '無可翻譯內容', text });
+
+  const run = async (name, enabled, fn) => {
+    if (!enabled) return { engine: name, ok: false, error: '未設定金鑰' };
+    const t0 = Date.now();
+    try {
+      const out = await fn();
+      return { engine: name, ok: true, ms: Date.now() - t0, output: out };
+    } catch (e) {
+      return { engine: name, ok: false, ms: Date.now() - t0, error: e.message };
+    }
+  };
+
+  const jobs = [];
+  if (engine === 'azure' || engine === 'all') {
+    jobs.push(
+      run(`azure-openai (${AZURE_OPENAI_DEPLOYMENT}, ${aoaiUseLegacyPath ? 'legacy' : 'v1'})`, AOAI_ENABLED, () =>
+        translateWithAzureOpenAI(text, dir)
+      )
+    );
+  }
+  if (engine === 'gemini' || engine === 'all') {
+    jobs.push(
+      run(`gemini (${model})`, GEMINI_ENABLED, () => translateWithGemini(text, dir, 0, 0, model))
+    );
+  }
+
+  res.json({ input: text, direction: `${dir.from}->${dir.to}`, results: await Promise.all(jobs) });
+});
 
 app.post('/webhook', line.middleware(lineConfig), async (req, res) => {
   res.status(200).end();
