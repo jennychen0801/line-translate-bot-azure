@@ -12,7 +12,7 @@ services:
     name: line-translate-bot
     runtime: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm ci --omit=dev
     startCommand: npm start
     healthCheckPath: /health
     autoDeploy: true
